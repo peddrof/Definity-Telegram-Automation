@@ -11,8 +11,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 # Configuração inicial
-TOKEN = os.getenv("7840719059:AAHdglK_EjeSoEjzi1e-_k_8YvZm9yEUMZ0")  # Busca o token da variável de ambiente
-ADMIN_ID = 8025982103  # ID real do admin
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 BTC_API_URL = "https://economia.awesomeapi.com.br/json/last/BTC-BRL"
 
 # Verifica se o token está definido
