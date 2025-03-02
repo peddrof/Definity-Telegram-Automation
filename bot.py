@@ -3,6 +3,7 @@ import asyncio
 import re
 import os
 import requests
+import uuid  # Added for generating unique IDs
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
@@ -12,12 +13,16 @@ from aiogram.fsm.state import State, StatesGroup
 
 # Configuração inicial
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+JWT_TOKEN = os.getenv("JWT_TOKEN")  # New: Get the Pix2Depix token
 BTC_API_URL = "https://economia.awesomeapi.com.br/json/last/BTC-BRL"
+API_URL = "https://depix.eulen.app/api/deposit"  # Pix2Depix API endpoint
 ADMIN_ID = 8025982103
 
-# Verifica se o token está definido
+# Verifica se os tokens estão definidos
 if not TOKEN:
     raise ValueError("TELEGRAM_TOKEN não está definido. Configure a variável de ambiente.")
+if not JWT_TOKEN:
+    raise ValueError("JWT_TOKEN não está definido. Configure a variável de ambiente.")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot=bot)
@@ -31,7 +36,29 @@ class Form(StatesGroup):
     amount = State()  # Estado para entrada da quantia
     address = State()  # Estado para entrada do endereço BTC
 
-# Comando /start
+# New: Function to generate Pix QR code
+async def generate_pix_qr(amount):
+    headers = {
+        "Authorization": f"Bearer {JWT_TOKEN}",  # Use the token for authentication
+        "Content-Type": "application/json",
+        "X-Async": "auto",  # Make the request instant
+        "X-Nonce": str(uuid.uuid4())  # Unique ID for each request
+    }
+    payload = {
+        "amountInCents": amount * 100  # Convert reais to centavos (R$ 100 = 10000 cents)
+    }
+    try:
+        response = requests.post(API_URL, json=payload, headers=headers, timeout=10)
+        data = response.json()
+        if response.status_code == 200 and not data.get("async"):
+            return data["response"]  # Contains QR code details
+        else:
+            raise Exception(f"API Error: {data.get('response', {}).get('errorMessage', 'Unknown')}")
+    except Exception as e:
+        logger.error(f"Error generating QR code: {e}")
+        raise
+
+# Comando /start (unchanged)
 @dp.message(Command("start"))
 async def start(message: types.Message):
     logger.info("Comando /start recebido")
@@ -74,7 +101,7 @@ async def start(message: types.Message):
 
     await asyncio.sleep(1)
 
-    await message.answer("Ao usar a Definity, você concorda com nossos termos de uso.")  # Mantido como texto puro
+    await message.answer("Ao usar a Definity, você concorda com nossos termos de uso.")
 
     await asyncio.sleep(1)
 
@@ -86,15 +113,13 @@ async def start(message: types.Message):
     ])
     await message.answer("Escolha uma opção abaixo:", reply_markup=buttons)
 
-# Comando /notify (exclusivo para o admin)
+# Comando /notify (unchanged)
 @dp.message(Command("notify"))
 async def notify(message: types.Message):
-    # Verifica se o comando veio do admin
     if message.from_user.id != ADMIN_ID:
         await message.answer("Este comando é restrito ao administrador.")
         return
 
-    # Divide o comando para extrair os argumentos
     parts = message.text.split(maxsplit=3)
     if len(parts) < 2:
         await message.answer("Uso: /notify <user_id> [image_url] [mensagem]\n"
@@ -105,68 +130,43 @@ async def notify(message: types.Message):
         return
 
     try:
-        # Extrai o user_id (sempre o primeiro argumento após /notify)
         _, user_id_str = parts[0:2]
         user_id = int(user_id_str)
 
-        # Determina se há imagem e/ou texto
         if len(parts) == 2:
-            # Apenas user_id e algo que pode ser URL ou texto
             second_part = parts[1]
             if re.match(r"^https?://[^\s]+$", second_part):
-                # É uma URL, tratar como apenas imagem
-                await bot.send_photo(
-                    chat_id=user_id,
-                    photo=second_part
-                )
+                await bot.send_photo(chat_id=user_id, photo=second_part)
                 await message.answer(f"Imagem enviada para o usuário com ID {user_id}.")
             else:
-                # Não é uma URL, tratar como apenas texto
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=second_part
-                )
+                await bot.send_message(chat_id=user_id, text=second_part)
                 await message.answer(f"Mensagem enviada para o usuário com ID {user_id}.")
         elif len(parts) == 3:
-            # user_id e segundo argumento (pode ser URL ou texto direto)
             second_part = parts[1]
             third_part = parts[2]
             if re.match(r"^https?://[^\s]+$", second_part):
-                # Segundo argumento é URL, tratar como imagem sem texto
-                await bot.send_photo(
-                    chat_id=user_id,
-                    photo=second_part
-                )
+                await bot.send_photo(chat_id=user_id, photo=second_part)
                 await message.answer(f"Imagem enviada para o usuário com ID {user_id}.")
             else:
-                # Segundo argumento não é URL, tratar tudo como texto
                 msg = " ".join(parts[1:])
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=msg
-                )
+                await bot.send_message(chat_id=user_id, text=msg)
                 await message.answer(f"Mensagem enviada para o usuário com ID {user_id}.")
         else:
-            # user_id, URL e texto (imagem com texto)
             image_url = parts[1]
             msg = parts[2]
             if not re.match(r"^https?://[^\s]+$", image_url):
                 await message.answer("A URL da imagem não parece válida. Use algo como https://exemplo.com/imagem.jpg")
                 return
-            await bot.send_photo(
-                chat_id=user_id,
-                photo=image_url,
-                caption=msg
-            )
+            await bot.send_photo(chat_id=user_id, photo=image_url, caption=msg)
             await message.answer(f"Imagem com texto enviada para o usuário com ID {user_id}.")
 
     except ValueError:
         await message.answer("Por favor, forneça um ID válido.\nExemplo: /notify 123456789 Olá!")
     except Exception as e:
         logger.error(f"Erro ao enviar mensagem para usuário: {e}")
-        await message.answer(f"Erro ao enviar mensagem: {e}. Certifique-se de que o usuário interagiu com o bot (e.g., enviou /start) e que a URL da imagem (se fornecida) é válida.")
+        await message.answer(f"Erro ao enviar mensagem: {e}. Certifique-se de que o usuário interagiu com o bot (e.g., enviou /start).")
 
-# Botão Comprar Bitcoin
+# Botão Comprar Bitcoin (unchanged)
 @dp.callback_query(lambda query: query.data == "comprar")
 async def comprar_bitcoin(query: types.CallbackQuery, state: FSMContext):
     logger.info("Botão 'Comprar Bitcoin' clicado")
@@ -174,7 +174,7 @@ async def comprar_bitcoin(query: types.CallbackQuery, state: FSMContext):
     await query.message.answer("Digite a quantia desejada, apenas em números de 20 a 6000 (limite diário por CPF), sem vírgula ou pontuações.")
     await query.answer()
 
-# Botão "Tenho um código para colar"
+# Botão "Tenho um código para colar" (unchanged)
 @dp.callback_query(lambda query: query.data == "colar_codigo")
 async def colar_codigo(query: types.CallbackQuery, state: FSMContext):
     logger.info("Botão 'Tenho um código para colar' clicado")
@@ -182,26 +182,23 @@ async def colar_codigo(query: types.CallbackQuery, state: FSMContext):
     await query.message.answer("Cole o código de compra gerado no site no chat e envie agora.")
     await query.answer()
 
-# Processa a quantia enviada ou código de compra e exibe cotação
+# Processa a quantia enviada ou código de compra (unchanged)
 @dp.message(StateFilter(Form.amount))
 async def process_amount_or_code(message: types.Message, state: FSMContext):
     logger.info(f"Processando entrada: {message.text}")
     text = message.text
 
-    # Verifica se é um código de compra
     code_match = re.search(r"SHA256(\d+)DEFINITY\.SPACE", text)
     if code_match:
-        amount = int(code_match.group(1))  # Extrai o valor entre SHA256 e DEFINITY.SPACE
+        amount = int(code_match.group(1))
     elif text.isdigit():
         amount = int(text)
     else:
         await message.answer("Entrada inválida. Forneça um código de compra válido ou uma quantia em números de 20 a 6000 (sem vírgula ou pontuação).")
         return
 
-    # Valida o valor
     if 20 <= amount <= 6000:
         await state.update_data(amount=amount)
-        # Calcula e exibe a cotação imediatamente
         try:
             response = requests.get(BTC_API_URL)
             if response.status_code == 200:
@@ -229,7 +226,7 @@ async def process_amount_or_code(message: types.Message, state: FSMContext):
     else:
         await message.answer("O valor deve estar entre R$ 20 e R$ 6000 (limite diário por CPF). Tente novamente.")
 
-# Processa o endereço BTC
+# Processa o endereço BTC (updated!)
 @dp.message(StateFilter(Form.address))
 async def process_address(message: types.Message, state: FSMContext):
     logger.info(f"Endereço BTC recebido: {message.text}")
@@ -240,21 +237,50 @@ async def process_address(message: types.Message, state: FSMContext):
         amount = user_data['amount']
         username = message.from_user.username if message.from_user.username else "Sem username"
         username_link = f"t.me/{username}" if message.from_user.username else "Usuário não tem username, peça um contato direto ou use o ID abaixo"
-        await bot.send_message(
-            ADMIN_ID,
-            f"🚀 Nova solicitação de compra:\n"
-            f"👤 Usuário: @{username} ({message.from_user.first_name})\n"
-            f"💵 Valor: R$ {amount}\n"
-            f"🏦 Endereço BTC: {address}\n"
-            f"📲 Contato: {username_link}\n"
-            f"📱 ID para envio de mensagem direta: {message.from_user.id}"
-        )
-        await message.answer("🔍 Um agente será localizado para gerar seu código Pix. Aguarde um momento.")
+
+        # Generate the QR code
+        try:
+            qr_data = await generate_pix_qr(amount)
+            qr_url = qr_data["qrImageUrl"]  # URL of the QR code image
+            qr_copy_paste = qr_data["qrCopyPaste"]  # Text version of the Pix code
+            deposit_id = qr_data["id"]  # Unique ID for this transaction
+
+            # Send QR code to the user
+            await message.answer_photo(
+                photo=qr_url,
+                caption=f"Use o QR code abaixo ou copie o código Pix para realizar o pagamento de R$ {amount}:\n\n{qr_copy_paste}"
+            )
+
+            # Notify the admin with all details
+            await bot.send_message(
+                ADMIN_ID,
+                f"🚀 Nova solicitação de compra:\n"
+                f"👤 Usuário: @{username} ({message.from_user.first_name})\n"
+                f"💵 Valor: R$ {amount}\n"
+                f"🏦 Endereço BTC: {address}\n"
+                f"📲 Contato: {username_link}\n"
+                f"📱 ID do usuário: {message.from_user.id}\n"
+                f"🔢 ID da transação: {deposit_id}"
+            )
+        except Exception as e:
+            await message.answer("❌ Erro ao gerar o QR code. Tente novamente mais tarde.")
+            logger.error(f"Erro ao gerar QR code: {e}")
+            # Still notify admin even if QR code fails
+            await bot.send_message(
+                ADMIN_ID,
+                f"⚠️ Nova solicitação de compra (QR code falhou):\n"
+                f"👤 Usuário: @{username} ({message.from_user.first_name})\n"
+                f"💵 Valor: R$ {amount}\n"
+                f"🏦 Endereço BTC: {address}\n"
+                f"📲 Contato: {username_link}\n"
+                f"📱 ID do usuário: {message.from_user.id}"
+            )
+
         await state.clear()
     else:
         await message.answer("Endereço BTC inválido. Forneça um endereço válido que comece com 'bc1', '1' ou '3'.")
 
-# Botão Suporte
+# Botão Suporte (unchanged)
 @dp.callback_query(lambda query: query.data == "suporte")
 async def suporte(query: types.CallbackQuery):
     logger.info("Botão 'Suporte' clicado")
@@ -267,7 +293,7 @@ async def suporte(query: types.CallbackQuery):
     await query.message.answer("📞 Sua solicitação de suporte foi enviada. Um agente entrará em contato em breve.")
     await query.answer()
 
-# Botão Sobre
+# Botão Sobre (unchanged)
 @dp.callback_query(lambda query: query.data == "sobre")
 async def sobre(query: types.CallbackQuery):
     logger.info("Botão 'Sobre' clicado")
@@ -279,7 +305,7 @@ async def sobre(query: types.CallbackQuery):
     await query.message.answer("Confira mais detalhes no nosso site oficial!", reply_markup=site_button)
     await query.answer()
 
-# Inicia o bot
+# Inicia o bot (unchanged)
 async def main():
     logger.info("Iniciando o bot...")
     await dp.start_polling(bot)
