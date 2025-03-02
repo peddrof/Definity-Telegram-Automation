@@ -13,6 +13,7 @@ from aiogram.fsm.state import State, StatesGroup
 # Configuração inicial
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 BTC_API_URL = "https://economia.awesomeapi.com.br/json/last/BTC-BRL"
+ADMIN_ID = 8025982103
 
 # Verifica se o token está definido
 if not TOKEN:
@@ -85,6 +86,42 @@ async def start(message: types.Message):
     ])
     await message.answer("Escolha uma opção abaixo:", reply_markup=buttons)
 
+# Comando /notify (exclusivo para o admin)
+@dp.message(Command("notify"))
+async def notify(message: types.Message):
+    # Verifica se o comando veio do admin
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("Este comando é restrito ao administrador.")
+        return
+
+    # Divide o comando para extrair o ID, a URL da imagem e a mensagem
+    try:
+        parts = message.text.split(maxsplit=3)
+        if len(parts) < 4:
+            await message.answer("Uso: /notify <user_id> <image_url> <mensagem>\nExemplo: /notify 123456789 https://exemplo.com/imagem.jpg Olá, tudo bem?")
+            return
+
+        _, user_id, image_url, msg = parts
+        user_id = int(user_id)
+
+        # Verifica se a URL parece válida (simples checagem de formato)
+        if not re.match(r"^https?://[^\s]+$", image_url):
+            await message.answer("Por favor, forneça uma URL válida para a imagem.")
+            return
+
+        # Envia a mensagem com a imagem para o usuário
+        await bot.send_photo(
+            chat_id=user_id,
+            photo=image_url,
+            caption=msg
+        )
+        await message.answer(f"Mensagem com imagem enviada para o usuário com ID {user_id}.")
+    except ValueError:
+        await message.answer("Por favor, forneça um ID válido, uma URL válida e uma mensagem.\nExemplo: /notify 123456789 https://exemplo.com/imagem.jpg Olá!")
+    except Exception as e:
+        logger.error(f"Erro ao enviar mensagem com imagem para usuário: {e}")
+        await message.answer(f"Erro ao enviar mensagem: {e}. Certifique-se de que o usuário interagiu com o bot (e.g., enviou /start) e que a URL da imagem é válida.")
+
 # Botão Comprar Bitcoin
 @dp.callback_query(lambda query: query.data == "comprar")
 async def comprar_bitcoin(query: types.CallbackQuery, state: FSMContext):
@@ -135,7 +172,7 @@ async def process_amount_or_code(message: types.Message, state: FSMContext):
                     f"💰 Cotação atual: 1 BTC é aprox. R$ {formatted_btc_price}\n"
                     f"📉 Tarifa Definity: 2%\n"
                     f"🔗 Taxa da rede: {network_fee_usd}\n"
-                    f"📤 Você receberá aproximadamente {btc_amount} BTC."
+                    f"📤 Você receberá aprox. {btc_amount} BTC."
                 )
                 await state.set_state(Form.address)
                 await message.answer("Por favor, forneça seu endereço de Bitcoin. Atente-se para enviar o endereço correto, que geralmente inicia com 'bc1'.")
@@ -157,12 +194,16 @@ async def process_address(message: types.Message, state: FSMContext):
     if re.match(r'^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$', address):
         user_data = await state.get_data()
         amount = user_data['amount']
+        username = message.from_user.username if message.from_user.username else "Sem username"
+        username_link = f"t.me/{username}" if message.from_user.username else "Usuário não tem username, peça um contato direto ou use o ID abaixo"
         await bot.send_message(
             ADMIN_ID,
             f"🚀 Nova solicitação de compra:\n"
-            f"👤 Usuário: {message.from_user.id} ({message.from_user.first_name})\n"
+            f"👤 Usuário: @{username} ({message.from_user.first_name})\n"
             f"💵 Valor: R$ {amount}\n"
-            f"🏦 Endereço BTC: {address}"
+            f"🏦 Endereço BTC: {address}\n"
+            f"📲 Contato: {username_link}\n"
+            f"📱 ID para envio de mensagem direta: {message.from_user.id}"
         )
         await message.answer("🔍 Um agente será localizado para gerar seu código Pix. Aguarde um momento.")
         await state.clear()
@@ -173,9 +214,11 @@ async def process_address(message: types.Message, state: FSMContext):
 @dp.callback_query(lambda query: query.data == "suporte")
 async def suporte(query: types.CallbackQuery):
     logger.info("Botão 'Suporte' clicado")
+    username = query.from_user.username if query.from_user.username else "Sem username"
+    username_link = f"t.me/{username}" if query.from_user.username else "Usuário não tem username, peça um contato direto ou use o ID abaixo"
     await bot.send_message(
         ADMIN_ID,
-        f"📞 **Novo pedido de suporte**\n👤 Usuário: {query.from_user.id} ({query.from_user.first_name})"
+        f"📞 **Novo pedido de suporte**\n👤 Usuário: @{username} ({query.from_user.first_name})\n📲 Contato: {username_link}\n📱 ID para envio de mensagem direta: {query.from_user.id}"
     )
     await query.message.answer("📞 Sua solicitação de suporte foi enviada. Um agente entrará em contato em breve.")
     await query.answer()
