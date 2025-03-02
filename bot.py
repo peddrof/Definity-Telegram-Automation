@@ -94,33 +94,77 @@ async def notify(message: types.Message):
         await message.answer("Este comando é restrito ao administrador.")
         return
 
-    # Divide o comando para extrair o ID, a URL da imagem e a mensagem
+    # Divide o comando para extrair os argumentos
+    parts = message.text.split(maxsplit=3)
+    if len(parts) < 2:
+        await message.answer("Uso: /notify <user_id> [image_url] [mensagem]\n"
+                             "Exemplos:\n"
+                             "- Apenas texto: /notify 123456789 Olá, tudo bem?\n"
+                             "- Apenas imagem: /notify 123456789 https://exemplo.com/imagem.jpg\n"
+                             "- Imagem com texto: /notify 123456789 https://exemplo.com/imagem.jpg Olá!")
+        return
+
     try:
-        parts = message.text.split(maxsplit=3)
-        if len(parts) < 4:
-            await message.answer("Uso: /notify <user_id> <image_url> <mensagem>\nExemplo: /notify 123456789 https://exemplo.com/imagem.jpg Olá, tudo bem?")
-            return
+        # Extrai o user_id (sempre o primeiro argumento após /notify)
+        _, user_id_str = parts[0:2]
+        user_id = int(user_id_str)
 
-        _, user_id, image_url, msg = parts
-        user_id = int(user_id)
+        # Determina se há imagem e/ou texto
+        if len(parts) == 2:
+            # Apenas user_id e algo que pode ser URL ou texto
+            second_part = parts[1]
+            if re.match(r"^https?://[^\s]+$", second_part):
+                # É uma URL, tratar como apenas imagem
+                await bot.send_photo(
+                    chat_id=user_id,
+                    photo=second_part
+                )
+                await message.answer(f"Imagem enviada para o usuário com ID {user_id}.")
+            else:
+                # Não é uma URL, tratar como apenas texto
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=second_part
+                )
+                await message.answer(f"Mensagem enviada para o usuário com ID {user_id}.")
+        elif len(parts) == 3:
+            # user_id e segundo argumento (pode ser URL ou texto direto)
+            second_part = parts[1]
+            third_part = parts[2]
+            if re.match(r"^https?://[^\s]+$", second_part):
+                # Segundo argumento é URL, tratar como imagem sem texto
+                await bot.send_photo(
+                    chat_id=user_id,
+                    photo=second_part
+                )
+                await message.answer(f"Imagem enviada para o usuário com ID {user_id}.")
+            else:
+                # Segundo argumento não é URL, tratar tudo como texto
+                msg = " ".join(parts[1:])
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=msg
+                )
+                await message.answer(f"Mensagem enviada para o usuário com ID {user_id}.")
+        else:
+            # user_id, URL e texto (imagem com texto)
+            image_url = parts[1]
+            msg = parts[2]
+            if not re.match(r"^https?://[^\s]+$", image_url):
+                await message.answer("A URL da imagem não parece válida. Use algo como https://exemplo.com/imagem.jpg")
+                return
+            await bot.send_photo(
+                chat_id=user_id,
+                photo=image_url,
+                caption=msg
+            )
+            await message.answer(f"Imagem com texto enviada para o usuário com ID {user_id}.")
 
-        # Verifica se a URL parece válida (simples checagem de formato)
-        if not re.match(r"^https?://[^\s]+$", image_url):
-            await message.answer("Por favor, forneça uma URL válida para a imagem.")
-            return
-
-        # Envia a mensagem com a imagem para o usuário
-        await bot.send_photo(
-            chat_id=user_id,
-            photo=image_url,
-            caption=msg
-        )
-        await message.answer(f"Mensagem com imagem enviada para o usuário com ID {user_id}.")
     except ValueError:
-        await message.answer("Por favor, forneça um ID válido, uma URL válida e uma mensagem.\nExemplo: /notify 123456789 https://exemplo.com/imagem.jpg Olá!")
+        await message.answer("Por favor, forneça um ID válido.\nExemplo: /notify 123456789 Olá!")
     except Exception as e:
-        logger.error(f"Erro ao enviar mensagem com imagem para usuário: {e}")
-        await message.answer(f"Erro ao enviar mensagem: {e}. Certifique-se de que o usuário interagiu com o bot (e.g., enviou /start) e que a URL da imagem é válida.")
+        logger.error(f"Erro ao enviar mensagem para usuário: {e}")
+        await message.answer(f"Erro ao enviar mensagem: {e}. Certifique-se de que o usuário interagiu com o bot (e.g., enviou /start) e que a URL da imagem (se fornecida) é válida.")
 
 # Botão Comprar Bitcoin
 @dp.callback_query(lambda query: query.data == "comprar")
@@ -172,7 +216,7 @@ async def process_amount_or_code(message: types.Message, state: FSMContext):
                     f"💰 Cotação atual: 1 BTC é aprox. R$ {formatted_btc_price}\n"
                     f"📉 Tarifa Definity: 2%\n"
                     f"🔗 Taxa da rede: {network_fee_usd}\n"
-                    f"📤 Você receberá aprox. {btc_amount} BTC."
+                    f"📤 Você receberá aproximadamente {btc_amount} BTC."
                 )
                 await state.set_state(Form.address)
                 await message.answer("Por favor, forneça seu endereço de Bitcoin. Atente-se para enviar o endereço correto, que geralmente inicia com 'bc1'.")
