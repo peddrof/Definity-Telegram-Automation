@@ -222,6 +222,7 @@ async def colar_codigo(query: types.CallbackQuery, state: FSMContext):
 async def process_amount_or_code(message: types.Message, state: FSMContext):
     logger.info(f"Processando entrada: {message.text}")
     text = message.text
+
     code_match = re.search(r"SHA256(\d+)DEFINITY\.SPACE", text)
     if code_match:
         amount = int(code_match.group(1))
@@ -232,6 +233,7 @@ async def process_amount_or_code(message: types.Message, state: FSMContext):
             "Entrada inválida. Forneça um código de compra válido ou uma quantia em números de 20 a 6000."
         )
         return
+
     if 20 <= amount <= 6000:
         await state.update_data(amount=amount)
         try:
@@ -241,14 +243,15 @@ async def process_amount_or_code(message: types.Message, state: FSMContext):
                 btc_price = float(data["BTCBRL"]["bid"])
                 definity_fee = round(amount * 0.02, 2)
                 network_fee_usd = "aprox. 0,50 a 2,50 USD"
-                btc_amount = round(((amount * 0.98) - 10) / btc_price, 8)
+                btc_amount = ((amount * 0.98) - 10) / btc_price
+                formatted_btc_amount = f"{btc_amount:.8f}"  # Formata para 8 casas decimais como decimal
                 formatted_btc_price = f"{btc_price:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 await message.answer(
                     f"💵 Valor escolhido: R$ {amount}\n"
                     f"💰 Cotação atual: 1 BTC é aprox. R$ {formatted_btc_price}\n"
                     f"📉 Tarifa Definity: 2%\n"
                     f"🔗 Taxa da rede: {network_fee_usd}\n"
-                    f"📤 Você receberá aproximadamente {btc_amount} BTC."
+                    f"📤 Você receberá aproximadamente {formatted_btc_amount} BTC."
                 )
                 await state.set_state(Form.address)
                 await message.answer(
