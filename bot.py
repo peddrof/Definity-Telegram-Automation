@@ -63,7 +63,7 @@ def get_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    sheet = client.open("Definity Transactions").sheet1  # Nome da sua planilha
+    sheet = client.open("DefinityDepixDeposits").sheet1  # Nome da sua planilha
     return sheet
 
 # Função de rate limiting
