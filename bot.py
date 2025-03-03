@@ -226,7 +226,7 @@ async def process_amount_or_code(message: types.Message, state: FSMContext):
     else:
         await message.answer("O valor deve estar entre R$ 20 e R$ 6000 (limite diário por CPF). Tente novamente.")
 
-# Processa o endereço BTC (updated!)
+# Processa o endereço BTC (updated with QR code formatting)
 @dp.message(StateFilter(Form.address))
 async def process_address(message: types.Message, state: FSMContext):
     logger.info(f"Endereço BTC recebido: {message.text}")
@@ -245,10 +245,16 @@ async def process_address(message: types.Message, state: FSMContext):
             qr_copy_paste = qr_data["qrCopyPaste"]  # Text version of the Pix code
             deposit_id = qr_data["id"]  # Unique ID for this transaction
 
-            # Send QR code to the user
+            # Send QR code image with a short caption
             await message.answer_photo(
                 photo=qr_url,
-                caption=f"Use o QR code abaixo ou copie o código Pix para realizar o pagamento de R$ {amount}:\n\n{qr_copy_paste}"
+                caption=f"Use o QR code acima ou copie o código Pix abaixo para realizar o pagamento de R$ {amount}:"
+            )
+
+            # Send the copy-paste code as a separate message with code block formatting
+            await message.answer(
+                f"```\n{qr_copy_paste}\n```",
+                parse_mode="MarkdownV2"
             )
 
             # Notify the admin with all details
