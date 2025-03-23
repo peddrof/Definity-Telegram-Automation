@@ -23,7 +23,7 @@ CREDENTIALS_JSON = os.getenv("CREDENTIALS_JSON")  # Google Sheets credentials
 BTC_API_URL = "https://economia.awesomeapi.com.br/json/last/BTC-BRL"
 API_URL = "https://depix.eulen.app/api/deposit"
 STATUS_URL = "https://depix.eulen.app/api/deposit-status"
-ADMIN_ID = 8025982103  # Substitua pelo seu ID de administrador
+ADMIN_ID = 5643390510  # Substitua pelo seu ID de administrador
 MAX_REQUESTS_PER_MINUTE = 2  # Limite de 2 solicitações por minuto
 
 # Verifica se as variáveis de ambiente estão definidas
