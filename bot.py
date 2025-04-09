@@ -63,7 +63,7 @@ def get_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    sheet = client.open("DefinityDepixDeposits").sheet1  # Nome da sua planilha
+    sheet = client.open("DefinityDepixDeposits").sheet1  # Nome da planilha
     return sheet
 
 # Função de rate limiting
@@ -134,7 +134,7 @@ async def check_payment_status():
 async def start(message: types.Message):
     logger.info("Comando /start recebido")
     await message.answer(
-        "🚨 **Horário de Atendimento** 🚨\n\n"
+        "🚨 Horário de Atendimento 🚨\n\n"
         "Prezado cliente,\n"
         "Nosso horário de atendimento para suporte é das 10h às 20h (de segunda a sexta). "
         "Aos finais de semana, o atendimento acontece conforme a disponibilidade dos atendentes.\n"
@@ -142,32 +142,32 @@ async def start(message: types.Message):
     )
     await asyncio.sleep(1)
     await message.answer(
-        "🔹 **Como funciona a Definity?**\n\n"
-        "A **Definity** foi criada para que você possa comprar **Bitcoin de forma segura, privada e eficiente**, "
-        "sem depender de bancos ou governos. Utilizamos tecnologias que garantem **transações rápidas e protegidas**, "
+        "🔹 Como funciona a Definity?\n\n"
+        "A Definity foi criada para que você possa comprar Bitcoin de forma segura, privada e eficiente, "
+        "sem depender de bancos ou governos. Utilizamos tecnologias que garantem transações rápidas e protegidas, "
         "proporcionando total controle sobre seus fundos.\n\n"
-        "🛠 **Passo 1: Escolha o valor que deseja comprar**\n"
-        "• Informe o valor em **reais** que deseja converter para Bitcoin.\n"
-        "• Você pode comprar entre **R$ 20 e R$ 6000 por dia**, respeitando o limite diário por CPF.\n"
+        "🛠 Passo 1: Escolha o valor que deseja comprar\n"
+        "• Informe o valor em reais que deseja converter para Bitcoin.\n"
+        "• Você pode comprar entre R$ 20 e R$ 6000 por dia, respeitando o limite diário por CPF.\n"
         "• Após isso, você receberá um resumo da conversão, incluindo a cotação do BTC e as taxas aplicáveis.\n\n"
-        "🏦 **Passo 2: Efetue o pagamento via Pix**\n"
-        "• O sistema gera uma **chave Pix exclusiva** para sua compra.\n"
+        "🏦 Passo 2: Efetue o pagamento via Pix\n"
+        "• O sistema gera uma chave Pix exclusiva para sua compra.\n"
         "• Realize o pagamento dentro do prazo indicado para garantir a cotação informada.\n"
         "• Assim que o pagamento for detectado, a transação será processada.\n\n"
-        "📤 **Passo 3: Informe seu endereço de Bitcoin**\n"
-        "• Após o pagamento, forneça um **endereço de carteira Bitcoin** para receber os fundos.\n"
-        "• Certifique-se de que o endereço está correto, pois **as transações são irreversíveis**.\n"
-        "• **Carteira recomendada para iniciantes:** Sugerimos o uso da **Blue Wallet (offline)**, "
+        "📤 Passo 3: Informe seu endereço de Bitcoin\n"
+        "• Após o pagamento, forneça um endereço de carteira Bitcoin para receber os fundos.\n"
+        "• Certifique-se de que o endereço está correto, pois as transações são irreversíveis.\n"
+        "• Carteira recomendada para iniciantes: Sugerimos o uso da Blue Wallet (offline), "
         "uma opção segura e fácil de usar que garante controle total sobre seus ativos.\n\n"
-        "🔎 **Passo 4: Receba seus Bitcoins**\n"
+        "🔎 Passo 4: Receba seus Bitcoins\n"
         "• Após a confirmação, seus Bitcoins serão enviados diretamente para sua carteira.\n"
         "• O tempo de recebimento pode variar conforme a velocidade da rede e a taxa de transação escolhida.\n\n"
-        "🚀 **Por que usar a Definity?**\n"
-        "• **Privacidade:** Nenhum dado pessoal é solicitado, garantindo anonimato total.\n"
-        "• **Rapidez:** As transações são concluídas rapidamente após a confirmação do pagamento.\n"
-        "• **Segurança:** Nosso sistema opera com máxima proteção para que você receba seus fundos sem riscos.\n"
-        "• **Independência financeira:** Retire seu dinheiro do sistema tradicional e tenha **controle total sobre seu patrimônio**.\n\n"
-        "🔐 **Compre Bitcoin de forma segura e sem burocracia com a Definity!**"
+        "🚀 Por que usar a Definity?\n"
+        "• Privacidade: Nenhum dado pessoal é solicitado, garantindo anonimato total.\n"
+        "• Rapidez: As transações são concluídas rapidamente após a confirmação do pagamento.\n"
+        "• Segurança: Nosso sistema opera com máxima proteção para que você receba seus fundos sem riscos.\n"
+        "• Independência financeira: Retire seu dinheiro do sistema tradicional e tenha controle total sobre seu patrimônio.\n\n"
+        "🔐 Compre Bitcoin de forma segura e sem burocracia com a Definity!"
     )
     await asyncio.sleep(1)
     await message.answer("Ao usar a Definity, você concorda com nossos termos de uso.")
@@ -329,7 +329,7 @@ async def suporte(query: types.CallbackQuery):
     username_link = f"t.me/{username}" if query.from_user.username else "Sem link"
     await bot.send_message(
         ADMIN_ID,
-        f"📞 **Novo pedido de suporte**\n"
+        f"📞 Novo pedido de suporte\n"
         f"👤 Usuário: @{username} ({query.from_user.first_name})\n"
         f"📲 Contato: {username_link}\n"
         f"📱 ID: {query.from_user.id}"
