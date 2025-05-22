@@ -214,7 +214,7 @@ async def comprar_bitcoin(query: types.CallbackQuery, state: FSMContext):
 async def colar_codigo(query: types.CallbackQuery, state: FSMContext):
     logger.info("Botão 'Tenho um código para colar' clicado")
     await state.set_state(Form.amount)
-    await query.message.answer("Cole o código de compra gerado no site no chat e envie agora.")
+    await query.message.answer("Copie o código de compra gerado no site no chat e envie agora.")
     await query.answer()
 
 # Processa a quantia ou código
