@@ -4,7 +4,7 @@ A Python-based utility designed to automate interactions, alerts, and messaging 
 
 ### Tech Stack
 * **Language:** Python 3.x
-* **Libraries:** `python-telegram-bot` (or `Telethon` / `Pyrogram`), `requests`
+* **Libraries:** `python-telegram-bot`, `requests`
 
 ### Getting Started
 1. Clone the repository: `git clone https://github.com/peddrof/Definity-Telegram-Automation.git`
